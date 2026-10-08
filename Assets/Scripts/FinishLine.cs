@@ -13,12 +13,29 @@ public class FinishLine : MonoBehaviour
             Debug.Log("Player has crossed the finish line!");
             finishEffect.Play(); // Play the finish effect particles
             //TODO: Add logic to handle the player crossing the finish line, such as ending the game or transitioning to a new scene.
-            Invoke(nameof(ReloadScene), reloadDelay);
+            int unlockedLevel = PlayerPrefs.GetInt("unlockedLevel", 1);
+            PlayerPrefs.SetInt("unlockedLevel", unlockedLevel + 1); // Unlock the next level
+            Invoke(nameof(NextLevel), reloadDelay);
         }
     }
-
-    void ReloadScene()
+    
+    
+    void NextLevel()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        int unlockedLevel = PlayerPrefs.GetInt("unlockedLevel", 1);
+        PlayerPrefs.SetInt("unlockedLevel", unlockedLevel + 1); // Unlock the next level
+        PlayerPrefs.Save(); // Save the PlayerPrefs to persist the unlocked level
+
+        if(unlockedLevel > 4)
+        {
+            // Load the main menu scene
+            SceneManager.LoadScene("Menu");
+        }
+        else
+        {
+            // Load the next scene in the build index
+            SceneManager.LoadScene($"Level{unlockedLevel + 1}");
+        }
     }
 }
