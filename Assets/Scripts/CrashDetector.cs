@@ -18,9 +18,10 @@ public class CrashDetector : MonoBehaviour
         {
             playerController.CanControlPlayer = false; // Disable player control
             Debug.Log("Player has crashed!"); 
-            crashEffect.Play(); // Play the crash effect particles  
+            crashEffect.Play(); // Play the crash effect particles 
+            Invoke(nameof(ReloadScene), 1f); // Reload the scene after 2 seconds 
         }
-        Invoke(nameof(ReloadScene), 1f); // Reload the scene after 2 seconds
+        
     }
 
         void ReloadScene()
