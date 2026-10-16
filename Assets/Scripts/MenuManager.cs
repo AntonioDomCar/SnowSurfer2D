@@ -28,10 +28,23 @@ public class MenuManager : MonoBehaviour
     }
 
     public void GoToLevel(int level)
+{
+    int unlockedLevels = Mathf.Max(
+        1,
+        PlayerPrefs.GetInt("UnlockedLevels", 1)
+    );
+
+    Debug.Log("Intentando entrar al nivel: " + level);
+    Debug.Log("Niveles desbloqueados: " + unlockedLevels);
+
+    if (level > unlockedLevels || level < 1)
     {
-        SceneManager.LoadScene($"Level{level}"); // Load the specified level scene
+        Debug.LogWarning("Nivel bloqueado: " + level);
+        return;
     }
 
+    SceneManager.LoadScene("Level" + level);
+}
     public void SelectLevel()
     {
         // Load the level selection scene
@@ -44,11 +57,14 @@ public class MenuManager : MonoBehaviour
         Application.Quit();
     }
 
-    public void SelectCharacter(int Character)
+    public void SelectCharacter(int character)
     {
-        PlayerPrefs.SetInt("SelectedCharacter", Character); // Save the selected character index in PlayerPrefs
+        PlayerPrefs.SetInt("SelectedCharacter", character);
         PlayerPrefs.Save();
 
-        SceneManager.LoadScene("Menu"); // Load the main menu scene after selecting a character
+        Debug.Log("Personaje guardado: " +
+            PlayerPrefs.GetInt("SelectedCharacter"));
+
+        SceneManager.LoadScene("Menu");
     }
 }

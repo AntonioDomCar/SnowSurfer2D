@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -28,8 +27,36 @@ public class PlayerController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        // Activate the selected character model based on PlayerPrefs
-        transform.GetChild(0).GetChild(PlayerPrefs.GetInt("SelectedCharacter", 0)).gameObject.SetActive(true); 
+        int selectedCharacter =
+        PlayerPrefs.GetInt("SelectedCharacter", 0);
+
+        Transform characters = transform.Find("Characters");
+
+        if (characters == null)
+        {
+            Debug.LogError("No se encuentra Characters.");
+            return;
+        }
+
+        // Desactivar todos los personajes primero
+        foreach (Transform character in characters)
+        {
+            character.gameObject.SetActive(false);
+        }
+
+        // Buscar el personaje por su nombre
+        string characterName = "Character" + selectedCharacter;
+        Transform selected = characters.Find(characterName);
+
+        if (selected != null)
+        {
+            selected.gameObject.SetActive(true);
+            Debug.Log("Personaje activado: " + characterName);
+        }
+        else
+        {
+            Debug.LogError("No se encontró " + characterName);
+        }
 
         moveAction = InputSystem.actions.FindAction("Move");
         rb = GetComponent<Rigidbody2D>();

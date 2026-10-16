@@ -3,39 +3,66 @@ using UnityEngine.SceneManagement;
 
 public class FinishLine : MonoBehaviour
 {
-    [SerializeField] private float reloadDelay = 1f; // Delay before reloading the scene
-    [SerializeField] private ParticleSystem finishEffect; // Particle system for finish effect
+    [SerializeField] private float reloadDelay = 1f;
+    [SerializeField] private ParticleSystem finishEffect;
 
-    void OnTriggerEnter2D(Collider2D other)
+    private bool finished = false;
+
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player"))
+
+        if (!other.CompareTag("Player") || finished)
+            return;
+
+        finished = true;
+
+        Debug.Log("Player has crossed the finish line!");
+
+        if (finishEffect != null)
+            finishEffect.Play();
+        
+        
+        // Get the current level number from the scene name
+        string sceneName = SceneManager.GetActiveScene().name;
+        string levelText = sceneName.Replace("Level", "");
+
+        if (!int.TryParse(levelText, out int currentLevel))
         {
-            Debug.Log("Player has crossed the finish line!");
-            finishEffect.Play(); // Play the finish effect particles
-            //TODO: Add logic to handle the player crossing the finish line, such as ending the game or transitioning to a new scene.
-            int unlockedLevel = PlayerPrefs.GetInt("unlockedLevel", 1);
-            PlayerPrefs.SetInt("unlockedLevel", unlockedLevel + 1); // Unlock the next level
-            Invoke(nameof(NextLevel), reloadDelay);
+            Debug.LogError("Scene name must follow the format Level1, Level2, etc.");
+            return;
         }
-    }
-    
-    
-    void NextLevel()
-    {
 
-        int unlockedLevel = PlayerPrefs.GetInt("unlockedLevel", 1);
-        PlayerPrefs.SetInt("unlockedLevel", unlockedLevel + 1); // Unlock the next level
-        PlayerPrefs.Save(); // Save the PlayerPrefs to persist the unlocked level
+        // Unlock the next level
+        int nextLevel = currentLevel + 1;
+        int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevels", 1);
 
-        if(unlockedLevel > 4)
+        if (nextLevel > unlockedLevel)
         {
-            // Load the main menu scene
+            PlayerPrefs.SetInt("UnlockedLevels", nextLevel);
+            PlayerPrefs.Save();
+        }
+
+        Invoke(nameof(NextLevel), reloadDelay);
+    }
+
+    private void NextLevel()
+    {
+        string sceneName = SceneManager.GetActiveScene().name;
+        string levelText = sceneName.Replace("Level", "");
+
+        if (!int.TryParse(levelText, out int currentLevel))
+            return;
+
+        int nextLevel = currentLevel + 1;
+
+        // Return to the menu after the final level
+        if (currentLevel >= 4)
+        {
             SceneManager.LoadScene("Menu");
         }
         else
         {
-            // Load the next scene in the build index
-            SceneManager.LoadScene($"Level{unlockedLevel + 1}");
+            SceneManager.LoadScene("Level" + nextLevel);
         }
     }
 }
