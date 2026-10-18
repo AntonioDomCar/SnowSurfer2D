@@ -3,8 +3,15 @@ using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("Movimiento y Rotación")]
     [SerializeField] private float torqueAmount = 1f; // velocidad de rotacion
     [SerializeField] private float boostSpeed = 35f; // velocidad de impulso
+
+    [Header("Mecánica de Salto")]
+    [SerializeField] public float jumpForce = 10f; // fuerza del salto
+    private bool isGrounded = false; // control de si está en el suelo
+
+    [Header("Efectos y Managers")]
     [SerializeField] private ParticleSystem snowEffect; // Particle system for boost effect
     [SerializeField] private ScoreManager scoreManager; // Reference to the ScoreManager script
 
@@ -27,8 +34,7 @@ public class PlayerController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        int selectedCharacter =
-        PlayerPrefs.GetInt("SelectedCharacter", 0);
+        int selectedCharacter = PlayerPrefs.GetInt("SelectedCharacter", 0);
 
         Transform characters = transform.Find("Characters");
 
@@ -67,10 +73,25 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-       if(!canControlPlayer) return;  // If the player cannot control, exit the method
-       PlayerTorque();
-       BoostPlayer();
-       CalculateFlips();
+        if(!canControlPlayer) return;  // If the player cannot control, exit the method
+        
+        PlayerTorque();
+        BoostPlayer();
+        JumpPlayer(); 
+        CalculateFlips();
+    }
+
+    /// <summary>
+    /// Gestiona el salto del personaje utilizando el Input System y la fuerza vertical.
+    /// </summary>
+    void JumpPlayer()
+    {
+        // Detecta impulso hacia arriba en el mando/teclado (flecha arriba / W / Espacio) cuando está en el suelo
+        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && isGrounded)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            isGrounded = false; // Evita saltos infinitos mientras despega
+        }
     }
 
     /// <summary>
@@ -113,8 +134,8 @@ public class PlayerController : MonoBehaviour
 
     void BoostPlayer()
     {
-        //Increase the player's speed based on the vertical input from the user.
-        //Surface efector speed is increased to bootspeed the player.
+        // Increase the player's speed based on the vertical input from the user.
+        // Surface effector speed is increased to boostspeed the player.
         if (moveInput.y > 0f)
         {
             surfaceEffector.speed = boostSpeed; // Increase speed when moving up
@@ -130,7 +151,8 @@ public class PlayerController : MonoBehaviour
         int layerIndex = LayerMask.NameToLayer("Floor");
         if (collision.gameObject.layer == layerIndex)
         {
-            Debug.Log("Player is ont the floor!");
+            Debug.Log("Player is on the floor!");
+            isGrounded = true; // El jugador tocó el suelo
             snowEffect.Play(); // Play the snow effect particles
         }
     }
@@ -141,6 +163,7 @@ public class PlayerController : MonoBehaviour
         if (collision.gameObject.layer == layerIndex)
         {
             Debug.Log("Player is off the floor!");
+            isGrounded = false; // El jugador despegó del suelo
             snowEffect.Stop(); // Stop the snow effect particles
         }
     }
@@ -154,7 +177,6 @@ public class PlayerController : MonoBehaviour
             baseSpeed += powerUpData.PowerUpValue; // Increase the base speed of the player
             boostSpeed += powerUpData.PowerUpValue; // Increase the boost speed of the player
         }
-
     }
 
     public void deactivatePowerUp(PowerUpScriptableObjectScript powerUpData)
@@ -163,13 +185,11 @@ public class PlayerController : MonoBehaviour
 
         if(activePowerUpsCount == 0)
         {
-          if (powerUpData.PowerUpType == "Speed")
+            if (powerUpData.PowerUpType == "Speed")
             {
                 baseSpeed -= powerUpData.PowerUpValue; // Decrease the base speed of the player
                 boostSpeed -= powerUpData.PowerUpValue; // Decrease the boost speed of the player
-              
             }
         }    
-     
     }
 }
