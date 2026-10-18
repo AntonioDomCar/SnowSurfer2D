@@ -11,6 +11,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] public float jumpForce = 10f; // fuerza del salto
     private bool isGrounded = false; // control de si está en el suelo
 
+    [Header("Recompensa por Flips")]
+    [SerializeField] private float speedMultiplierBase = 1.07f; // Multiplicador base exponencial
+    private Coroutine speedBoostCoroutine;
+    private bool isBoostingFromFlip = false; // Controla si el impulso por flip está activo
+    private int flipsInCurrentAirTime = 0; // Control de flips en el salto actual
+
     [Header("Efectos y Managers")]
     [SerializeField] private ParticleSystem snowEffect; // Particle system for boost effect
     [SerializeField] private ScoreManager scoreManager; // Reference to the ScoreManager script
@@ -100,20 +106,18 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void CalculateFlips()
     {
-        // Get the current rotation of the player
         float currentRotation = transform.eulerAngles.z; 
-
-        // Calculate the change in rotation since the last frame
         totalRotation += Mathf.DeltaAngle(previousRotation, currentRotation); 
 
         if(Mathf.Abs(totalRotation) > 340)
         {
             flipCount++;
-            scoreManager.AddScore(flipCount * 100); // Update the score in the ScoreManager
-            totalRotation = 0; // Reset total rotation after a flip is counted
+            flipsInCurrentAirTime++; // <--- Cuenta los flips realizados en este salto
+            scoreManager.AddScore(flipCount * 100); 
+            totalRotation = 0; 
         }
 
-        previousRotation = currentRotation; // Update previous rotation for the next frame
+        previousRotation = currentRotation; 
     }
 
     /// <summary>
@@ -134,6 +138,9 @@ public class PlayerController : MonoBehaviour
 
     void BoostPlayer()
     {
+
+        // Si el impulso temporal por flip está activo, no sobrescribir la velocidad
+        if (isBoostingFromFlip) return;
         // Increase the player's speed based on the vertical input from the user.
         // Surface effector speed is increased to boostspeed the player.
         if (moveInput.y > 0f)
@@ -152,8 +159,26 @@ public class PlayerController : MonoBehaviour
         if (collision.gameObject.layer == layerIndex)
         {
             Debug.Log("Player is on the floor!");
-            isGrounded = true; // El jugador tocó el suelo
-            snowEffect.Play(); // Play the snow effect particles
+            isGrounded = true; 
+            snowEffect.Play(); 
+
+            // Si completó al menos un flip en el aire, aplica velocidad exponencial al aterrizar
+            if (flipsInCurrentAirTime > 0)
+            {
+                // Cálculo exponencial: base elevada al número de flips (ej: 1.3^1, 1.3^2, 1.3^3...)
+                float exponentialMultiplier = Mathf.Pow(speedMultiplierBase, flipsInCurrentAirTime);
+                float boostedTargetSpeed = boostSpeed * exponentialMultiplier;
+
+                // Inicia o reinicia la corrutina del boost temporal de 1 segundo
+                if (speedBoostCoroutine != null)
+                {
+                    StopCoroutine(speedBoostCoroutine);
+                }
+                speedBoostCoroutine = StartCoroutine(ApplyTemporarySpeedBoost(boostedTargetSpeed, 0.5f));
+
+                // Reinicia el contador para el próximo salto
+                flipsInCurrentAirTime = 0;
+            }
         }
     }
 
@@ -191,5 +216,18 @@ public class PlayerController : MonoBehaviour
                 boostSpeed -= powerUpData.PowerUpValue; // Decrease the boost speed of the player
             }
         }    
+    }
+
+    private System.Collections.IEnumerator ApplyTemporarySpeedBoost(float targetSpeed, float duration)
+    {
+        isBoostingFromFlip = true; // Bloquea la sobrescritura de BoostPlayer
+        surfaceEffector.speed = targetSpeed;
+
+        yield return new WaitForSeconds(duration);
+
+        isBoostingFromFlip = false; // Libera la velocidad
+    
+        // Asigna la velocidad adecuada según si la flecha arriba se sigue presionando o no
+        surfaceEffector.speed = (moveInput.y > 0f) ? boostSpeed : baseSpeed;
     }
 }
