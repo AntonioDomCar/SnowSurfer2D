@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
@@ -17,9 +18,19 @@ public class PlayerController : MonoBehaviour
     private bool isBoostingFromFlip = false; // Controla si el impulso por flip está activo
     private int flipsInCurrentAirTime = 0; // Control de flips en el salto actual
 
+    [Header("Mecánica de Turbo (Boost)")]
+    [SerializeField] private float maxTurbo = 100f; // Capacidad máxima del turbo
+    [SerializeField] private float currentTurbo = 0f; // Turbo actual
+    [SerializeField] private float turboGainPerFlip = 35f; // Cuánto turbo suma cada flip
+    [SerializeField] private float turboBoostSpeed = 50f; // Velocidad extrema al activar el turbo
+
+    private bool isTurboActive = false;
+
     [Header("Efectos y Managers")]
     [SerializeField] private ParticleSystem snowEffect; // Particle system for boost effect
     [SerializeField] private ScoreManager scoreManager; // Reference to the ScoreManager script
+
+    [SerializeField] private Slider turboSlider; // Referencia a la barra UI
 
     private bool canControlPlayer = true; // Flag to control player input
     public bool CanControlPlayer { get => canControlPlayer; set => canControlPlayer = value; }
@@ -74,6 +85,12 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         surfaceEffector = FindAnyObjectByType<SurfaceEffector2D>();
         baseSpeed = surfaceEffector.speed;
+
+        if (turboSlider != null)
+        {
+            turboSlider.maxValue = maxTurbo;
+            turboSlider.value = currentTurbo;
+        }
     }
 
     // Update is called once per frame
@@ -82,7 +99,7 @@ public class PlayerController : MonoBehaviour
         if(!canControlPlayer) return;  // If the player cannot control, exit the method
         
         PlayerTorque();
-        BoostPlayer();
+        HandleTurbo();
         JumpPlayer(); 
         CalculateFlips();
     }
@@ -112,8 +129,15 @@ public class PlayerController : MonoBehaviour
         if(Mathf.Abs(totalRotation) > 340)
         {
             flipCount++;
-            flipsInCurrentAirTime++; // <--- Cuenta los flips realizados en este salto
+            flipsInCurrentAirTime++; 
             scoreManager.AddScore(flipCount * 100); 
+
+            // Sumar turbo al completar un flip (con un tope máximo)
+            currentTurbo = Mathf.Clamp(currentTurbo + turboGainPerFlip, 0f, maxTurbo);
+
+            // Actualizar la barra visual
+            if (turboSlider != null) turboSlider.value = currentTurbo;
+
             totalRotation = 0; 
         }
 
@@ -220,14 +244,35 @@ public class PlayerController : MonoBehaviour
 
     private System.Collections.IEnumerator ApplyTemporarySpeedBoost(float targetSpeed, float duration)
     {
-        isBoostingFromFlip = true; // Bloquea la sobrescritura de BoostPlayer
+        isBoostingFromFlip = true;
         surfaceEffector.speed = targetSpeed;
 
         yield return new WaitForSeconds(duration);
 
-        isBoostingFromFlip = false; // Libera la velocidad
-    
-        // Asigna la velocidad adecuada según si la flecha arriba se sigue presionando o no
-        surfaceEffector.speed = (moveInput.y > 0f) ? boostSpeed : baseSpeed;
+        isBoostingFromFlip = false;
+        surfaceEffector.speed = baseSpeed; // <--- Restaura a la velocidad base
     }
+
+    void HandleTurbo()
+{
+    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed && currentTurbo > 0f)
+    {
+        isTurboActive = true;
+        surfaceEffector.speed = turboBoostSpeed;
+
+        currentTurbo -= Time.deltaTime * 40f;
+        if (currentTurbo < 0f) currentTurbo = 0f;
+
+        // Actualizar la barra visual mientras se gasta
+        if (turboSlider != null) turboSlider.value = currentTurbo;
+    }
+    else if (isTurboActive)
+    {
+        isTurboActive = false;
+        if (!isBoostingFromFlip)
+        {
+            surfaceEffector.speed = baseSpeed; // <--- Vuelve a la velocidad base al terminar el turbo
+        }
+    }
+}
 }
